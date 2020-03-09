@@ -2,7 +2,6 @@ import dataclasses
 import datetime
 import functools
 import inspect
-import json
 import logging
 import re
 import subprocess
@@ -144,7 +143,7 @@ def props_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:
 
 
 def get_pub_attr_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:
-    return list(filter(lambda prop: not callable(getattr(cls, prop)), pub_props_of_class(cls)))
+    return list(filter(lambda prop: not callable(cls.__dict__.get(prop)), pub_props_of_class(cls)))
 
 
 def get_attr_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:

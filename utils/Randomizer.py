@@ -85,7 +85,7 @@ class Randomizer:
     @staticmethod
     def random_bool(true_probability: float = 0.5) -> bool:
         assert 0 <= true_probability <= 1, f"'true_probability' has to be a value between 0 and 1"
-        return np.choice([True, False], p=[true_probability, 1 - true_probability])
+        return np.random.choice([True, False], p=[true_probability, 1 - true_probability])
 
     @_unique
     def random_ip(self, ip_v6: bool = False) -> str:
