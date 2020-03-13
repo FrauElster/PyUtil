@@ -9,8 +9,9 @@ import logging
 import os
 import pickle
 import shutil
+import zipfile
 from decimal import Decimal
-from typing import List, Any, Dict, Union
+from typing import List, Any, Dict, Union, Optional
 
 LOGGER = logging.getLogger(__name__)
 
@@ -102,6 +103,23 @@ def delete_dir(dir_name: str, is_abs: bool = False) -> bool:
     return False
 
 
+def rename_file(old_filename: str, new_filename: str, is_abs: bool = False) -> bool:
+    old_filepath: str = old_filename if is_abs else to_abs_file_path(old_filename)
+    new_filepath: str = new_filename if is_abs else to_abs_file_path(new_filename)
+    if not check_if_file_exists(old_filepath):
+        LOGGER.info(f"Could not rename {old_filepath} to {new_filepath}")
+        return False
+    os.rename(old_filepath, new_filepath)
+    return True
+
+
+def _greedy_file_resolution(filename: str) -> Optional[str]:
+    if check_if_file_exists(filename, is_abs=True):
+        return filename
+    if check_if_file_exists(to_abs_file_path(filename), is_abs=True):
+        return to_abs_file_path(filename)
+
+
 def check_if_file_exists(filename: str, is_abs: bool = False) -> bool:
     """
     Checks if a file exist and if it is a file
@@ -109,14 +127,21 @@ def check_if_file_exists(filename: str, is_abs: bool = False) -> bool:
     :param filename: the file to check
     :return: whether it exists and is a file
     """
-    filepath: str = to_abs_file_path(filename)
+    filepath: str = filename if is_abs else to_abs_file_path(filename)
     if not os.path.exists(filepath):
-        LOGGER.warning(f'{filepath} does not exist')
+        LOGGER.debug(f'{filepath} does not exist')
         return False
     if not os.path.isfile(filepath):
-        LOGGER.warning(f'{filepath} is not a file')
+        LOGGER.debug(f'{filepath} is not a file')
         return False
     return True
+
+
+def _greedy_dir_resolution(dirname: str) -> Optional[str]:
+    if check_if_dir_exists(dirname, is_abs=True):
+        return dirname
+    if check_if_dir_exists(to_abs_file_path(dirname), is_abs=True):
+        return to_abs_file_path(dirname)
 
 
 def check_if_dir_exists(dirname: str, is_abs: bool = False) -> bool:
@@ -128,10 +153,10 @@ def check_if_dir_exists(dirname: str, is_abs: bool = False) -> bool:
     """
     dir_path: str = dirname if is_abs else to_abs_file_path(dirname)
     if not os.path.exists(dir_path):
-        LOGGER.warning(f'{dir_path} does not exist')
+        LOGGER.debug(f'{dir_path} does not exist')
         return False
     if not os.path.isdir(dir_path):
-        LOGGER.warning(f'{dir_path} is not a directory')
+        LOGGER.debug(f'{dir_path} is not a directory')
         return False
     return True
 
@@ -140,7 +165,7 @@ def save_file(file_name: str, data: Any, is_abs: bool = False, force_pickle: boo
     """ writes a file, if a file with file_name already exists its content gets overwritten """
     file_path: str = file_name if is_abs else to_abs_file_path(file_name)
     if not os.path.isfile(file_path):
-        LOGGER.info(f'{file_path} created')
+        LOGGER.debug(f'{file_path} created')
     if force_pickle or get_file_ending(file_path) in ["pickl"]:
         with open(file_path, 'wb') as file:
             pickle.dump(obj=data, file=file)
@@ -153,7 +178,7 @@ def save_file(file_name: str, data: Any, is_abs: bool = False, force_pickle: boo
             writer.writerows(data)
         else:
             file.write(str(data))
-    LOGGER.info(f'saved {file_name}')
+    LOGGER.debug(f'saved {file_name}')
 
 
 def append_to_file(file_name: str, data: Any, is_abs: bool = False, force_pickle: bool = False) -> bool:
@@ -180,8 +205,8 @@ def append_to_file(file_name: str, data: Any, is_abs: bool = False, force_pickle
     return ok
 
 
-def get_files_in_dir(dirname: str, endings: List[str] = None, recursive: bool = False, is_abs: bool = False) -> List[
-    str]:
+def get_files_in_dir(dirname: str, endings: List[str] = None, recursive: bool = False, is_abs: bool = False) \
+        -> Optional[List[str]]:
     """
     :param dirname: the directory name or path specific to project root
     :param is_abs: determines if the given path is absolute or relative to project root
@@ -192,7 +217,7 @@ def get_files_in_dir(dirname: str, endings: List[str] = None, recursive: bool = 
     """
     if not check_if_dir_exists(dirname):
         LOGGER.info(f"Directory {dirname} doesnt exist in {to_abs_file_path('')}")
-        return None
+        return
 
     if not endings:
         endings = ["*"]
@@ -205,7 +230,9 @@ def get_files_in_dir(dirname: str, endings: List[str] = None, recursive: bool = 
 
 def load_file(filename: str, is_abs: bool = False, force_pickle: bool = False) -> any:
     """
-    loads contents of a file. If it is a json file, it tries to parse it.
+    loads contents of a file.
+    If the file ends with `json` or `pickl` it tries to load it with these formats
+    :param force_pickle: if True, the file gets saved with pickl
     :param filename: the path to the file to load
     :param is_abs: determines if the given path is absolute or relative to project root
     :return:
@@ -245,3 +272,82 @@ def get_file_ending(filepath: str) -> str:
     :return: the ending of a file
     """
     return filepath.split(".")[-1]
+
+
+def get_file_without_ending(filepath: str) -> str:
+    """
+    "file.txt" -> "file"
+    :param filepath:
+    :return:
+    """
+    if not get_file_ending(filepath):
+        return filepath
+    splitted = filepath.split(".")
+    splitted.pop(-1)
+    return ".".join(splitted)
+
+
+def create_zip(archive_name: str, files: Union[str, List[str]], is_abs: bool = False, force: bool = False) -> bool:
+    """
+    Creates a zip archive with "<archive_name>.zip" and compresses all files Listed in files.
+    :param force: whether an existing archive should be overwritten
+    :param archive_name: the name of the archive. If it does not end with ".zip" it will be appended
+    :param files: a list of file paths to include.
+    :param is_abs: if the [archive_name] is an absolute path
+    :return: bool of success
+    """
+    archive_name = archive_name if get_file_ending(archive_name) == "zip" else f"{archive_name}.zip"
+    archive_name = archive_name if is_abs else to_abs_file_path(archive_name)
+
+    if check_if_file_exists(archive_name):
+        if force:
+            LOGGER.debug(f"{archive_name} already exists. Overwriting...")
+        else:
+            LOGGER.debug(f"{archive_name} already exists. Aborting. "
+                         f"You can force a overwrite by setting 'force' = True")
+            return False
+
+    zip_file = zipfile.ZipFile(archive_name, "w")
+    files = [files] if isinstance(files, str) else files
+    for file in files:
+        filepath = _greedy_file_resolution(file)
+        if not filepath:
+            LOGGER.info(f"Could not include {file} to {archive_name}: File not found")
+            continue
+        zip_file.write(filepath)
+    zip_file.close()
+    LOGGER.debug(f"{archive_name} created")
+    return True
+
+
+def append_to_zip(archive_name: str, files: Union[str, List[str]], is_abs: bool = False,
+                  create_if_not_exist: bool = True) -> bool:
+    """
+    Appends files to an archive
+    :param archive_name: the name of the archive. If it does not end with ".zip" its appended
+    :param files: a list of file paths to append
+    :param is_abs: if the archive_name is absolute path or root relative
+    :param create_if_not_exist: if set, the archive will be created if non exist
+    :return: bool of success
+    """
+    archive_name = archive_name if get_file_ending(archive_name) == "zip" else f"{archive_name}.zip"
+    archive_name = archive_name if is_abs else to_abs_file_path(archive_name)
+
+    if not check_if_file_exists(archive_name):
+        if create_if_not_exist:
+            return create_zip(archive_name, is_abs=True, files=files)
+        else:
+            LOGGER.info(f"Could not append to {archive_name}: does not exist.")
+            return False
+
+    zip_file = zipfile.ZipFile(archive_name, "a")
+    files = [files] if isinstance(files, str) else files
+    for file in files:
+        filepath = _greedy_file_resolution(file)
+        if not filepath:
+            LOGGER.info(f"Could not include {file} to {archive_name}: File not found")
+            continue
+        zip_file.write(filepath)
+    zip_file.close()
+    LOGGER.debug(f"{archive_name} created")
+    return True

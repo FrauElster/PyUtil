@@ -1,4 +1,3 @@
-import functools
 import logging
 from copy import deepcopy
 from dataclasses import dataclass

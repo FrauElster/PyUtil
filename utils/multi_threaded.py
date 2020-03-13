@@ -2,7 +2,7 @@ import inspect
 from collections import Iterable
 from typing import Callable, Optional, Dict, Any, Union, List, Tuple
 
-from utils.StoppableThreadWithReturnValue import StoppableThreadWithReturnValue
+from .StoppableThreadWithReturnValue import StoppableThreadWithReturnValue
 
 
 def multi_threaded(funcs: List[Union[Callable, Tuple[Callable, List[Any], Dict[str, Any], str]]]) \
