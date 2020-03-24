@@ -8,6 +8,7 @@ from .filehandler import check_if_dir_exists, to_abs_file_path, check_if_file_ex
 
 def _archive_log(log_file: str, archive_name: str):
     if not check_if_file_exists(log_file):
+        print("hello")
         return
 
     new_log_file: str = f"{get_file_without_ending(log_file)}_{datetime.now().strftime('%Y.%m.%d_%H:%M:%S')}." \
@@ -18,7 +19,7 @@ def _archive_log(log_file: str, archive_name: str):
     delete_file(new_log_file)
 
 
-def setup_logger(logger_name: str, log_file: str, log_dir: str = None, log_file_debug: str = None,
+def setup_logger(logger_name: str, log_file: str = None, log_dir: str = None, log_file_debug: str = None,
                  archive_name: str = None, level: str = None) -> None:
     """
     Setup logger
@@ -26,7 +27,7 @@ def setup_logger(logger_name: str, log_file: str, log_dir: str = None, log_file_
     If not provided it default to `INFO`
     :param logger_name: the name of the logger. This should be globally accessible variable.
     Get the logger by `logging.getLogger(<logger_name>)` anywhere in the code
-    :param log_file: the filename of the log
+    :param log_file: the filename of the log. defaults to [logger_name].[level].log
     :param log_dir: the log directory. If not provided project_root is assumed
     :param log_file_debug: the file for debug logging. If not provided, none will be created
     :param archive_name: Creates an archive of old logs. These will be signed with the date, the next log takes place.
@@ -53,8 +54,10 @@ def setup_logger(logger_name: str, log_file: str, log_dir: str = None, log_file_
     if log_dir and not check_if_dir_exists(log_dir):
         os.mkdir(to_abs_file_path(log_dir))
 
+    log_file = log_file if log_file else f"{logger_name}.{logging._levelToName[level].lower()}.log"
     log_file = os.path.join(log_dir, log_file) if log_dir else log_file
     if archive_name:
+        archive_name = os.path.join(log_dir, archive_name) if log_dir else archive_name
         _archive_log(log_file, archive_name)
     file_handler: logging.FileHandler = logging.FileHandler(to_abs_file_path(log_file), mode='w')
     file_handler.setLevel(level)
@@ -62,6 +65,7 @@ def setup_logger(logger_name: str, log_file: str, log_dir: str = None, log_file_
     logger.addHandler(file_handler)
 
     if log_file_debug:
+        log_file_debug = log_file_debug if log_file_debug else f"{logger_name}.debug.log"
         log_file_debug = os.path.join(log_dir, log_file_debug) if log_dir else log_file_debug
         if archive_name:
             _archive_log(log_file_debug, archive_name)

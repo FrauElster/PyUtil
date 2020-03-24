@@ -3,8 +3,8 @@ from copy import deepcopy
 from dataclasses import dataclass
 from typing import Dict, Any, Callable, List, Optional, Union
 
-from utils.Singleton import Singleton
-from utils.util import get_pub_attr_of_class
+from .Singleton import Singleton
+from .util import get_pub_attr_of_class
 
 LOGGER: logging.Logger = logging.getLogger(__name__)
 

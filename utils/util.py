@@ -4,6 +4,7 @@ import functools
 import inspect
 import logging
 import re
+import socket
 import subprocess
 from copy import copy
 from inspect import isclass
@@ -29,6 +30,7 @@ def can_fail(func: Callable[[List[Any], List[Any]], Any]):
         return int(x)
     ```
     """
+
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         self = args[0] if args and hasattr(args[0], func.__name__) else None
@@ -60,7 +62,7 @@ def list_to_dict(items: List[Any], key: str) -> Dict[Any, Any]:
 
         def __getitem__(self, item):
             if item not in Foo.__dict__['__annotations__'].keys():
-                raise IndexError(f'{item} is not a attribute of {BeverageCustomer}')
+                raise IndexError(f'{item} is not a attribute of {Foo}')
             return self.__getattribute__(item)
 
     foo_list = [Foo(id=0, bar="hello"), Foo(id=1, bar="world")]
@@ -204,3 +206,48 @@ def is_int(s: Union[str, int]) -> Optional[int]:
         return int(s)
     except Exception:
         return None
+
+
+def is_internet_connected() -> bool:
+    try:
+        s = socket.create_connection(("8.8.8.8", 80), 3)
+        s.close()
+        return True
+    except:
+        pass
+    return False
+
+
+def clean_dict(dictionary: Dict[str, Any], to_clean: str, replacement: str) -> Dict[str, Any]:
+    """
+
+    :param dictionary:
+    :param to_clean:
+    :param replacement:
+    :return:
+    """
+
+    def _clean_list(list_: List[Any], to_clean: str, replacement: str) -> List[Any]:
+        new_list = []
+        for v in list_:
+            if isinstance(v, dict):
+                new_v = clean_dict(v, to_clean, replacement)
+            elif isinstance(v, list):
+                new_v = _clean_list(v, to_clean, replacement)
+            else:
+                new_v = v
+            new_list.append(new_v)
+        return new_list
+
+    new_dict: Dict[str, Any] = {}
+    for k, v in dictionary.items():
+        new_k = k.replace(to_clean, replacement) if to_clean in k else k
+        if isinstance(v, dict):
+            new_v = clean_dict(v, to_clean, replacement)
+        elif isinstance(v, list):
+            new_v = _clean_list(v, to_clean, replacement)
+        else:
+            new_v = v
+        new_dict[new_k] = new_v
+
+    return new_dict

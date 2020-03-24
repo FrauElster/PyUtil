@@ -1,3 +1,11 @@
+############### requirements ###############
+#
+# numpy
+# Faker
+#
+############################################
+
+
 import collections
 import functools
 import logging
@@ -7,6 +15,8 @@ from datetime import datetime
 from ipaddress import IPv4Address, IPv6Address
 from random import randint, uniform, choices, random, getrandbits
 from typing import List, Dict, Callable, Any, Optional
+
+from faker import Faker
 
 LOGGER: logging.Logger = logging.getLogger(__name__)
 ITERLIMIT: int = 1000
@@ -45,9 +55,15 @@ def _unique(func: Callable[[Optional[List[Any]], Optional[Dict[Any, Any]]], Any]
 
 class Randomizer:
     _uniques: Dict[str, List[int]]
+    _faker: Faker
 
     def __init__(self):
         self._uniques = collections.defaultdict(list)
+        self._faker = Faker()
+
+    @_unique
+    def random_name(self) -> str:
+        return self._faker.name()
 
     @_unique
     def random_int(self, min: int, max: int, unique: bool = False) -> int:

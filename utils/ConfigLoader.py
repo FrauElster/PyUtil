@@ -150,8 +150,12 @@ class ConfigLoader:
         """
         if not check_if_file_exists(self._config_file):
             msg: str = f"No config found at {to_abs_file_path(self._config_file)}"
-            LOGGER.error(msg)
-            raise FileNotFoundError(msg)
+            for key_type in self._key_types:
+                if key_type.required:
+                    LOGGER.error(msg)
+                    raise FileNotFoundError(msg)
+            LOGGER.warning(msg)
+            return
 
         raw_config = load_file(self._config_file)
         if not raw_config:
