@@ -3,3 +3,4 @@ Faker
 tika
 pandas
 fpdf
+sqlalchemy

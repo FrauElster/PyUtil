@@ -220,11 +220,11 @@ def is_internet_connected() -> bool:
 
 def clean_dict(dictionary: Dict[str, Any], to_clean: str, replacement: str) -> Dict[str, Any]:
     """
-
-    :param dictionary:
-    :param to_clean:
-    :param replacement:
-    :return:
+    Cleans all keys of dictionaries recursively.
+    :param dictionary: the dictionary to clean
+    :param to_clean: the string to replace
+    :param replacement: the string to replace it with
+    :return: a dictionary where all keys that had the [to_clean] in them got replaced with the [replacement]
     """
 
     def _clean_list(list_: List[Any], to_clean: str, replacement: str) -> List[Any]:

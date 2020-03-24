@@ -24,7 +24,7 @@ from pandas import DataFrame
 from tika import parser
 
 LOGGER = logging.getLogger(__name__)
-PROJECT_ROOT_RELATIVE_TO_THIS_FILE: str = os.path.join("..", "..")
+PROJECT_ROOT_RELATIVE_TO_THIS_FILE: str = os.path.join("..")
 
 
 @dataclasses.dataclass
