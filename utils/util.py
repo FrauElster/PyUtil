@@ -1,5 +1,4 @@
 import dataclasses
-import datetime
 import functools
 import inspect
 import logging
@@ -37,8 +36,8 @@ def can_fail(func: Callable[[List[Any], List[Any]], Any]):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            LOGGER.error(f'{self.__class__.__name__ + "." if self else ""}{func.__name__} '
-                         f'failed with {e.__class__.__name__}: {e}')
+            LOGGER.warning(f'{self.__class__.__name__ + "." if self else ""}{func.__name__} '
+                           f'failed with {e.__class__.__name__}: {e}')
             return None
 
     return wrapper
@@ -86,41 +85,6 @@ def str_to_time_str(string: str) -> Optional[str]:
     return string if match else None
 
 
-def str_to_time(time_string: str) -> Optional[datetime.time]:
-    """
-    Tries to convert a string to a datetime object
-    :param time_string:
-    :return:
-    """
-    try:
-        result = datetime.datetime.strptime(str_to_time_str(time_string), TIME_FORMAT).time()
-        return result
-    except Exception as e:
-        LOGGER.warning(f"Failed to convert {time_string} to datetime: wrong format "
-                       f"(Not '{TIME_FORMAT}')")
-        return None
-
-
-def str_to_datetime(time_string: str) -> Optional[datetime.datetime]:
-    """
-    Tries to convert a string to a datetime object
-    :param time_string:
-    :return:
-    """
-    try:
-        date_time_separation = time_string.split(" ")
-        if len(date_time_separation) < 2:
-            date_time_separation.append("00:00:00")
-        date_time_separation[1] = str_to_time_str(date_time_separation[1])
-
-        result = datetime.datetime.strptime(' '.join(date_time_separation), DATETIME_FORMAT)
-        return result
-    except Exception as e:
-        LOGGER.warning(f"Can not convert {time_string} to datetime: wrong format "
-                       f"(Not '{DATETIME_FORMAT}')")
-        return None
-
-
 def pub_props_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:
     """
     for dataclasses this only works on attributes that have a default value
@@ -145,14 +109,31 @@ def props_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:
 
 
 def get_pub_attr_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:
+    """
+    Returns a list of public attributes of a given class or object.
+    For dataclasses this only works for attributes that have a default value
+    :param cls: the class or object you want the public attr from
+    :return: a List[str] with the names of the attributes as values
+    """
     return list(filter(lambda prop: not callable(cls.__dict__.get(prop)), pub_props_of_class(cls)))
 
 
 def get_attr_of_class(cls: Union[Callable[[], Any], object]) -> List[str]:
+    """
+       Returns a list of attributes of a given class or object.
+       For dataclasses this only works for attributes that have a default value
+       :param cls: the class or object you want the attr from
+       :return: a List[str] with the names of the attributes as values
+    """
     return list(filter(lambda prop: not inspect.isfunction(prop), props_of_class(cls)))
 
 
 def check_if_any_prop_none(obj: object) -> List[str]:
+    """
+    Returns a list of properties that are None or falsy of a given object
+    :param obj: the object to inspect
+    :return: a list of the names of the attributes that are falsy
+    """
     return list(filter(lambda prop: obj.__dict__[prop] is None or (
             not isinstance(obj.__dict__[prop], bool) and not obj.__dict__[prop]), props_of_class(obj.__class__)))
 
@@ -226,28 +207,53 @@ def clean_dict(dictionary: Dict[str, Any], to_clean: str, replacement: str) -> D
     :param replacement: the string to replace it with
     :return: a dictionary where all keys that had the [to_clean] in them got replaced with the [replacement]
     """
-
     def _clean_list(list_: List[Any], to_clean: str, replacement: str) -> List[Any]:
         new_list = []
-        for v in list_:
-            if isinstance(v, dict):
-                new_v = clean_dict(v, to_clean, replacement)
-            elif isinstance(v, list):
-                new_v = _clean_list(v, to_clean, replacement)
+        for value in list_:
+            if isinstance(value, dict):
+                new_value = clean_dict(value, to_clean, replacement)
+            elif isinstance(value, list):
+                new_value = _clean_list(value, to_clean, replacement)
             else:
-                new_v = v
-            new_list.append(new_v)
+                new_value = value
+            new_list.append(new_value)
         return new_list
 
     new_dict: Dict[str, Any] = {}
-    for k, v in dictionary.items():
-        new_k = k.replace(to_clean, replacement) if to_clean in k else k
-        if isinstance(v, dict):
-            new_v = clean_dict(v, to_clean, replacement)
-        elif isinstance(v, list):
-            new_v = _clean_list(v, to_clean, replacement)
+    for key, value in dictionary.items():
+        new_key = key.replace(to_clean, replacement) if to_clean in key else key
+        if isinstance(value, dict):
+            new_value = clean_dict(value, to_clean, replacement)
+        elif isinstance(value, list):
+            new_value = _clean_list(value, to_clean, replacement)
         else:
-            new_v = v
-        new_dict[new_k] = new_v
+            new_value = value
+        new_dict[new_key] = new_value
 
     return new_dict
+
+
+def levenshtein(s1: str, s2: str) -> int:
+    """
+    Calculates the levenshtein distance of the given strings
+    :param s1:
+    :param s2:
+    :return:
+    """
+    if len(s1) < len(s2):
+        return levenshtein(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]

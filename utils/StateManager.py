@@ -21,12 +21,24 @@ class Subscriber:
 class _State:
     name: str
     _value: Any
+    _history: List[Any]
+    _history_len: int
     _subscribers: Dict[str, Subscriber]
     _type: type
 
-    def __init__(self, name: str, value: Any = None, type=None):
+    def __init__(self, name: str, value: Any = None, type=None, history_len=10):
+        """
+
+        :param name: the name of the state
+        :param value: the initial value
+        :param type: the type the value can be. If none is provided, it accepts any type as new state
+        :param history_len: how many rollback states are saved.
+        If it is 0 no history will be available, if it is set to a negative value, the history saves all values
+        """
         self.name = name
         self._value = value
+        self._history_len = history_len
+        self._history = []
         self._subscribers = {}
         self._type = type
 
@@ -55,12 +67,28 @@ class _State:
         if self._type is not None:
             if not isinstance(value, self._type):
                 return False
+
+        self._update_history()
         self._value = deepcopy(value)
         self.notify()
         return True
 
+    def roll_back(self, index: int = 1) -> Optional[Any]:
+        if index > self._history_len:
+            return None
+        return self._history[-index]
+        
     def get_subscriber_ids(self) -> List[str]:
         return list(self._subscribers.keys())
+
+    def _update_history(self):
+        if self._history_len == 0:
+            return
+        self._history.append(self._value)
+        if self._history_len < 0:
+            return
+        if self._history_len < len(self._history):
+            self._history.pop(0)
 
 
 class StateManager:

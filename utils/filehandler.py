@@ -16,6 +16,7 @@ import pickle
 import shutil
 import zipfile
 from decimal import Decimal
+from enum import Enum
 from typing import List, Any, Dict, Union, Optional
 
 import pandas as pandas
@@ -97,6 +98,8 @@ class EnhancedJSONEncoder(json.JSONEncoder):
             return o.strftime("%H:%M:%S")
         if isinstance(o, Decimal):
             return float(o)
+        if isinstance(o, Enum):
+            return o.value
         if type(o) in [list, dict, bool, int, float, str]:
             return o
         if hasattr(o, "to_json") and callable(o.to_json):

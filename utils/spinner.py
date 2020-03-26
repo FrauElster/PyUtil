@@ -3,7 +3,33 @@ import sys
 import time
 import threading
 
-from typing import Generator, Iterator
+from typing import Generator, Iterator, Optional, Text
+
+_real_print = print
+
+
+def print(*values: object, sep: Optional[Text] = ' ', end: Optional[Text] = '\n', file=None,
+          flush: bool = None) -> None:
+    """
+    Monkey patches the print, so that the old spinner cursor will be removed.
+    For param explanation look at builtins.print.
+
+    ```python
+    from utils.spinner import print
+    with Spinner():
+        while True:
+            print("Foo")
+            sleep(1)
+    ```
+    :param values:
+    :param sep:
+    :param end:
+    :param file:
+    :param flush:
+    :return:
+    """
+    sys.stdout.write('\b\b')
+    _real_print(*values, sep=sep, end=end, file=file, flush=flush)
 
 
 class Spinner:
